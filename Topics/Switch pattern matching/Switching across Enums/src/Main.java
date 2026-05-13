@@ -1,6 +1,7 @@
 import java.util.Scanner;
 
-sealed interface Command permits SimpleCommand, CustomCommand {}
+sealed interface Command permits SimpleCommand, CustomCommand {
+}
 
 enum SimpleCommand implements Command {
     START, STOP, PAUSE
@@ -20,7 +21,12 @@ final class CustomCommand implements Command {
 
 public class Main {
     public static void processCommand(Command cmd) {
-        // write your code here
+        switch (cmd) {
+            case SimpleCommand.START -> System.out.println("System starting");
+            case SimpleCommand.STOP -> System.out.println("System stopping");
+            case SimpleCommand.PAUSE -> System.out.println("System paused");
+            case CustomCommand c -> System.out.println("Custom command.");
+        }
     }
 
     public static void main(String[] args) {
