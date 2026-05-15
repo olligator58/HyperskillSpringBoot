@@ -1,0 +1,68 @@
+<div class="step-text">
+<p>In this topic, we will talk about <strong>sealed</strong> <strong>classes and interfaces</strong>. This feature allows us to decide which classes or interfaces can derive from the base one.</p><h5 id="the-main-idea">The main idea</h5><p><strong>Inheritance</strong> is one of the pillars of OOP programming languages. It enables a class or interface to derive from another class or interface. Before this update, restrictions were set by the access modifier only. Any class or interface that had access to the base one could inherit from it if it wasn't set as <strong>final</strong> (in the case of classes). Thanks to the update, now we can determine which specific classes or interfaces can do that. It is set using the <code class="language-java">permits</code> keyword.</p><p>It is not always mandatory to explicitly mention permitted classes or interfaces. If all derived classes and interfaces are in the same source file as the sealed class or interface, you can skip that step. But if you do, you must declare all classes and interfaces from the permitted list, otherwise, you will face a compilation issue.</p><p><br/>Let's see how it works with classes and interfaces separately. Here is an example with a sealed class:</p><p></p><pre><code class="language-java">public sealed class Shape
+        permits Triangle, Square { }
+
+
+final class Triangle extends Shape { }
+
+final class Square extends Shape { }
+</code></pre><p>We mark the class as sealed and mention the class/classes that are allowed to extend it.</p><p>In the case of named modules if the derived classes and interfaces are located in different packages, you should explicitly show the package path in a <code class="language-java">permits</code> clause.</p><p><br/>The same approach works with interfaces:</p><p></p><pre><code class="language-java">sealed interface ShapeInterface
+        permits Triangle, TriangleInterface { }
+
+sealed class Shape
+        permits Triangle { }
+
+
+final class Triangle extends Shape implements ShapeInterface { }
+
+non-sealed interface TriangleInterface extends ShapeInterface { }</code></pre><p>As you can see, this mechanism works not only when a class implements an interface, but also when an interface extends the sealed interface.</p><p>If a class or interface is marked as <code class="language-java">sealed</code> it should have at least one subtype, otherwise, the application won't compile. We will explore the <code class="language-java">non-sealed</code> modifier in the next section.</p><p></p><h5 id="restrictions">Restrictions</h5><p>This feature supports three <a class="theory-lookup not-relevant" href="/learn/step/19707" rel="noopener noreferrer nofollow" target="_blank" title="In Java, access modifiers are special keywords that specify who is allowed to use your code or a part of it. | They can be placed in front of any field, method, or class. There are four different access modifiers in Java: private, package-private (also known as default), protected, and public. The private access modifier is only accessible within the class itself. The package-private access modifier is accessible to classes from the same package. The protected access modifier is accessible to classes from the same package and any extending class. The public access modifier can be accessed from anywhere.">access modifiers</a> for permitted classes or interfaces. All of them should be marked with only one of those modifiers.</p><ul><li><p><strong>Final</strong>, which can be used with classes only.</p></li><li><p><strong>Sealed</strong>: a permitted class or interface marked as sealed should also have its subtype.</p></li><li><p><strong>Non-sealed</strong>: a class with this modifier can be extended by another class. The same can be applied to interfaces: they can be a base for other classes and interfaces. This modifier's purpose is to open special points for extension in the sealed hierarchy while others are restricted.</p></li></ul><p>These modifiers can't be combined: <code class="language-java">final sealed</code>, <code class="language-java">final non-sealed,</code> or <code class="language-java">sealed non-sealed</code> will cause a compilation issue.<br/>Note that if you extend the permitted class, you will still remain in the hierarchy of the highest base class. Type checking against it will return true.</p><pre><code class="language-java">public class SealedDemo {
+    public static void main(String[] args) {
+        RightTriangle triangle = new RightTriangle();
+        boolean isInstance = triangle instanceof Shape;
+
+        System.out.println(isInstance); // true
+    }
+}
+
+sealed class Shape permits Triangle { }
+
+sealed class Triangle extends Shape permits RightTriangle { }
+
+non-sealed class RightTriangle extends Triangle { }</code></pre><p>The same logic works for interfaces as well.</p><h5 id="sealed-and-records">Sealed and records</h5><p>Records are also fine to be used together with the <code class="language-java">sealed</code> modifier. However, they can't inherit from a class since all records already extend <code class="language-java">java.lang.Record</code> implicitly and Java doesn't support <a class="theory-lookup not-relevant" href="/learn/step/19707" rel="noopener noreferrer nofollow" target="_blank" title="In Java, multiple inheritance refers to the ability of a class to inherit properties and methods from multiple interfaces. | A class can implement multiple interfaces by using the implements keyword, allowing it to adopt the methods and constants declared in those interfaces. This is useful when a class needs to exhibit behaviors from multiple sources, such as an amphibian animal that can live both in water and on land. However, Java does not support multiple inheritance from classes due to the single inheritance feature, where a class can only have one direct parent class.">multiple inheritance</a>. So, records can implement a sealed interface only.</p><pre><code class="language-java">sealed interface ShapeInterface permits Circle { }
+
+record Circle (double radius) implements ShapeInterface { }</code></pre><p>Since records are final by default, you can't use <code class="language-java">sealed</code> or <code class="language-java">non-sealed</code> modifiers here.</p><h5 id="exhaustive-compile-time-checking">Exhaustive compile-time checking</h5><p>The sealed feature has also brought us exhaustive compile-time checking. Consider the following code:</p><pre><code class="language-java">public class SealedDemo {
+    public static void main(String[] args) {
+        Triangle triangle = new Triangle();
+        System.out.println(printType(triangle));
+    }
+
+    public static String printType(Shape shape) {
+        if (shape instanceof Triangle) return "The shape is a triangle";
+        else if (shape instanceof Square) return "The shape is a square";
+        else throw new IncompatibleClassChangeError();
+    }
+}
+
+sealed class Shape
+        permits Triangle, Square { }
+
+final class Square extends Shape { }
+final class Triangle extends Shape { }</code></pre><p>The compiler doesn't know how to check whether all subtypes are included in the <code class="language-java">if</code> block but the new pattern matching feature for the switch is smarter and doesn't require the <code class="language-java">default</code> case label if checking against all subtypes is performed. Moreover, it can warn if you didn't cover any subtype <a class="theory-lookup not-relevant" href="/learn/step/19707" rel="noopener noreferrer nofollow" target="_blank" title="In Java, type checking is the process of verifying the compatibility of data types during assignment, operation, or casting. | It can occur at compile-time or runtime. A common example of runtime type checking in Java is the use of the instanceof keyword, which checks if an object is an instance of a specific class or interface. Type checking is crucial in Java to ensure type safety and avoid runtime errors. Java's strong typing system performs type checking at compile-time, which helps catch potential type-related errors before the code is executed. However, in some cases, type checking may also occur at runtime using reflection or pattern matching for instanceof. Type bounds are a way to limit the types that can be used with a generic class or method. By specifying a type bound, you can restrict the type parameter to be a specific class or an extension/implementation of a certain class/interface.">type checking</a>.</p><p>Sealed and non-sealed classes may be abstract and permit abstract subclasses.</p><p></p><pre><code class="language-java">public abstract sealed class Shape permits Triangle, Square {
+    public static void main(String[] args) {
+        Triangle triangle = new Triangle();
+
+        System.out.println(printShapeType(triangle)); // The shape is a triangle
+    }
+
+    public static String printShapeType(Shape shape) {
+        return switch (shape) {
+            case Triangle t -&gt; "The shape is a triangle";
+            case Square s -&gt; "The shape is a square";
+        };
+    }
+}
+
+final class Triangle extends Shape { }
+
+final class Square extends Shape { }</code></pre><p>The code above will compile and print <code class="language-java">The shape is a triangle</code> without any issues.</p><h5 id="conclusion">Conclusion</h5><p>This topic introduced you to a Java feature that helps us design a more precise code hierarchy. Thanks to it you will have more control over your code and increase its security level. It might seem unusual at first to build applications using this feature, but over time and with some due practice, you are sure to learn how to use it to your advantage.</p>
+</div>
